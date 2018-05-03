@@ -13,58 +13,40 @@ server {
       return 301 https://$host$request_uri; 
 }
 
+
+# All sites have similar type of configuration but still the server block is added repeatedly because of SSL Certificate.
+# Intentionally not added SAN and Lua implementation for the sack of simplicity. 
+
+# Sunbird Site
 server {
-  
-    # Listen to port no. 443
-      listen 443;
-
-    # SSL Certificate (Reference - http://nginx.org/en/docs/http/configuring_https_servers.html)
-      ssl on;
-      ssl_protocols  TLSv1 TLSv1.1 TLSv1.2;
-      ssl_ciphers HIGH:!aNULL:!MD5;
-      ssl_prefer_server_ciphers on;
-      
-      # Need to update certificate path with actual one.
-        ssl_certificate       /etc/nginx/cert.crt;
-        ssl_certificate_key   /etc/nginx/cert.key;
-   
-    # Reduce Processer Load due to SSL ( Reference - http://nginx.org/en/docs/http/ngx_http_ssl_module.html) 
-      keepalive_timeout   70;
-      ssl_session_cache  builtin:1000 shared:SSL:10m;
-      ssl_session_timeout 10m;  
-
-    # Default Files
-      index index.html index.htm;
 
     # Define server_names and capture subdomain in variable <subdomain>
-      server_name ~^(?P<subdomain>.+)\.qadocs\.sunbird\.org$ 
-                  ~^(?P<subdomain>.+)\.qadocs\.openrap\.io$ ;
+      server_name ~^(?P<subdomain>.+)\.qadocs\.sunbird\.org$ ;
 
-    location / { 
+    # Need to update certificate path with actual one.
+      ssl_certificate       /etc/nginx/sunbird.crt;
+      ssl_certificate_key   /etc/nginx/sunbird.key;
 
-        # DNS Resolver
-          resolver 8.8.8.8 ;
+    # S3 Bucket Public URL
+      set $bucketUrl http://sunbird-trial.s3-website.ap-south-1.amazonaws.com;
+  
+    # Include Common reusable server code
+      include /etc/nginx/location;  
+}
 
-        # Rewrite uri to uri/ so that it do not through 404 error
-          rewrite ^([^.]*[^/])$ $1/ permanent;
+# OpenRAP Site
+server {
 
-        # Proxy the appropriate server based on conditions
-          proxy_pass $bucketUrl$bucketFolder$bucketSubFolder$uri;
-    
-        # Do not buffer data, Send as it reaches proxy server
-          proxy_buffering off; 
+    # Define server_names and capture subdomain in variable <subdomain>
+      server_name ~^(?P<subdomain>.+)\.qadocs\.openrap\.io$ ;
 
-        # Headers
-          proxy_set_header Authorization '';
-          proxy_set_header X-Real-IP $remote_addr;
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-          proxy_hide_header x-amz-id-2; 
-          proxy_hide_header x-amz-request-id; 
-          proxy_hide_header x-amz-version-id;
-          proxy_hide_header Set-Cookie;
-          proxy_ignore_headers Set-Cookie;
-          proxy_intercept_errors on;
-          gzip_proxied no-cache no-store private expired auth;
-          add_header X-proxiedSite "$bucketUrl$bucketFolder$bucketSubFolder";
-    }
+    # Need to update certificate path with actual one.
+      ssl_certificate       /etc/nginx/openrap.crt;
+      ssl_certificate_key   /etc/nginx/openrap.key;
+
+    # S3 Bucket Public URL
+      set $bucketUrl http://sunbird-trial.s3-website.ap-south-1.amazonaws.com;
+  
+    # Include Common reusable server code
+      include /etc/nginx/location;  
 }
